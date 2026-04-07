@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.ecutuning.software",
+  "productName": "ECU Tuning Software",
+  "copyright": "Copyright © 2024 ECU Tuning Software",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist/**/*",
+    "assets/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/app-icon.ico",
+    "signAndEditExecutable": false
+  },
+  "nsis": {
+    "artifactName": "${productName}-${version}-${arch}-setup.${ext}",
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "ECU Tuning Software",
+    "uninstallDisplayName": "ECU Tuning Software"
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}-${arch}-portable.${ext}"
+  },
+  "fileAssociations": [
+    {
+      "ext": "bin",
+      "name": "ECU Binary File",
+      "description": "ECU Binary Calibration File",
+      "role": "Editor"
+    },
+    {
+      "ext": "xdf",
+      "name": "XDF Definition File",
+      "description": "TunerPro XDF Definition File",
+      "role": "Editor"
+    }
+  ]
+}
