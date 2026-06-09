@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 
+
 # Build output
 dist/
 release/
@@ -27,6 +28,10 @@ npm-debug.log*
 
 # Testing
 coverage/
+
+# ECU binary/definition files
+*.bin
+*.xdf
 
 # Temporary files
 *.tmp
