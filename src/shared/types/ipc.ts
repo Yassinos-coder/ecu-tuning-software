@@ -108,6 +108,7 @@ export interface XdfFileResult {
   path: string;
   filename: string;
   content?: string;
+  size?: number;
   error?: string;
 }
 

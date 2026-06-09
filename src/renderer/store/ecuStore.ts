@@ -13,6 +13,11 @@ interface EcuState {
   // Loaded files
   ecuFile: EcuFile | null;
   xdfDefinition: XdfDefinition | null;
+  xdfFile: {
+    path: string;
+    filename: string;
+    size?: number;
+  } | null;
 
   // Parsed data
   maps: CalibrationMap[];
@@ -33,14 +38,21 @@ interface EcuState {
 
   // Status
   isLoading: boolean;
+  loadingMessage: string | null;
   error: string | null;
   checksumStatus: 'unknown' | 'valid' | 'invalid';
+}
+
+type ChecksumStatus = EcuState['checksumStatus'];
+
+function getModifiedChecksumStatus(ecuFile: { checksumInfo?: unknown } | null): ChecksumStatus {
+  return ecuFile?.checksumInfo ? 'invalid' : 'unknown';
 }
 
 interface EcuActions {
   // File operations
   loadBinFile: (path: string, filename: string, data: Uint8Array) => void;
-  loadXdfFile: (content: string) => void;
+  loadXdfFile: (content: string, path?: string, filename?: string, size?: number) => void;
   saveBinFile: () => Uint8Array | null;
   closeBinFile: () => void;
 
@@ -74,6 +86,7 @@ interface EcuActions {
   // Utilities
   getSelectedMap: () => CalibrationMap | null;
   syncMapToBin: (mapId: string) => void;
+  setLoading: (isLoading: boolean, message?: string | null) => void;
   setError: (error: string | null) => void;
 }
 
@@ -84,6 +97,7 @@ export const useEcuStore = create<EcuStore>()(
     // Initial state
     ecuFile: null,
     xdfDefinition: null,
+    xdfFile: null,
     maps: [],
     scalars: [],
     selectedMapId: null,
@@ -94,6 +108,7 @@ export const useEcuStore = create<EcuStore>()(
     binMapper: new BinMapper(),
     checksumService: new ChecksumService(),
     isLoading: false,
+    loadingMessage: null,
     error: null,
     checksumStatus: 'unknown',
 
@@ -101,6 +116,7 @@ export const useEcuStore = create<EcuStore>()(
     loadBinFile: (path, filename, data) => {
       set((state) => {
         state.isLoading = true;
+        state.loadingMessage = `Loading BIN ${filename}`;
         state.error = null;
       });
 
@@ -130,6 +146,7 @@ export const useEcuStore = create<EcuStore>()(
           state.ecuFile = ecuFile;
           state.session = session;
           state.isLoading = false;
+          state.loadingMessage = null;
           state.checksumStatus = 'unknown';
           state.maps = loadedMaps;
           state.scalars = loadedScalars;
@@ -141,13 +158,15 @@ export const useEcuStore = create<EcuStore>()(
         set((state) => {
           state.error = error instanceof Error ? error.message : 'Failed to load BIN file';
           state.isLoading = false;
+          state.loadingMessage = null;
         });
       }
     },
 
-    loadXdfFile: (content) => {
+    loadXdfFile: (content, path = '', filename = 'XDF definition', size) => {
       set((state) => {
         state.isLoading = true;
+        state.loadingMessage = `Loading XDF ${filename}`;
         state.error = null;
       });
 
@@ -165,7 +184,13 @@ export const useEcuStore = create<EcuStore>()(
 
         set((state) => {
           state.xdfDefinition = xdfDefinition;
+          state.xdfFile = {
+            path,
+            filename,
+            size,
+          };
           state.isLoading = false;
+          state.loadingMessage = null;
           state.maps = loadedMaps;
           state.scalars = loadedScalars;
         });
@@ -173,6 +198,7 @@ export const useEcuStore = create<EcuStore>()(
         set((state) => {
           state.error = error instanceof Error ? error.message : 'Failed to parse XDF file';
           state.isLoading = false;
+          state.loadingMessage = null;
         });
       }
     },
@@ -194,13 +220,12 @@ export const useEcuStore = create<EcuStore>()(
         }
       }
 
-      // Correct checksum
-      state.checksumService.correct(state.ecuFile);
+      const checksumResult = state.checksumService.correct(state.ecuFile);
 
       state.ecuFile.markSaved();
 
       set((draft) => {
-        draft.checksumStatus = 'valid';
+        draft.checksumStatus = checksumResult.success ? 'valid' : 'unknown';
       });
 
       return state.ecuFile.data;
@@ -210,6 +235,7 @@ export const useEcuStore = create<EcuStore>()(
       set((state) => {
         state.ecuFile = null;
         state.xdfDefinition = null;
+        state.xdfFile = null;
         state.maps = [];
         state.scalars = [];
         state.selectedMapId = null;
@@ -217,6 +243,8 @@ export const useEcuStore = create<EcuStore>()(
         state.selectedRange = null;
         state.session = null;
         state.checksumStatus = 'unknown';
+        state.isLoading = false;
+        state.loadingMessage = null;
         state.error = null;
       });
     },
@@ -266,7 +294,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -296,7 +324,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -322,7 +350,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -348,7 +376,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -374,7 +402,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -394,7 +422,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -414,7 +442,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -430,7 +458,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -446,7 +474,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((state) => {
         state.maps[mapIndex] = map;
-        state.checksumStatus = 'invalid';
+        state.checksumStatus = getModifiedChecksumStatus(state.ecuFile);
       });
     },
 
@@ -481,7 +509,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((draft) => {
         draft.scalars[scalarIndex] = scalar;
-        draft.checksumStatus = 'invalid';
+        draft.checksumStatus = getModifiedChecksumStatus(draft.ecuFile);
         draft.error = null;
       });
     },
@@ -505,7 +533,7 @@ export const useEcuStore = create<EcuStore>()(
 
         set((draft) => {
           draft.maps[mapIndex] = map;
-          draft.checksumStatus = 'invalid';
+          draft.checksumStatus = getModifiedChecksumStatus(draft.ecuFile);
         });
         return;
       }
@@ -522,7 +550,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((draft) => {
         draft.scalars[scalarIndex] = scalar;
-        draft.checksumStatus = 'invalid';
+        draft.checksumStatus = getModifiedChecksumStatus(draft.ecuFile);
       });
     },
 
@@ -545,7 +573,7 @@ export const useEcuStore = create<EcuStore>()(
 
         set((draft) => {
           draft.maps[mapIndex] = map;
-          draft.checksumStatus = 'invalid';
+          draft.checksumStatus = getModifiedChecksumStatus(draft.ecuFile);
         });
         return;
       }
@@ -562,7 +590,7 @@ export const useEcuStore = create<EcuStore>()(
 
       set((draft) => {
         draft.scalars[scalarIndex] = scalar;
-        draft.checksumStatus = 'invalid';
+        draft.checksumStatus = getModifiedChecksumStatus(draft.ecuFile);
       });
     },
 
@@ -581,7 +609,7 @@ export const useEcuStore = create<EcuStore>()(
       const result = state.checksumService.validate(state.ecuFile);
 
       set((s) => {
-        s.checksumStatus = result.valid ? 'valid' : 'invalid';
+        s.checksumStatus = result.info ? (result.valid ? 'valid' : 'invalid') : 'unknown';
         if (result.info && s.ecuFile) {
           s.ecuFile.setChecksumInfo(result.info);
         }
@@ -597,6 +625,10 @@ export const useEcuStore = create<EcuStore>()(
       if (result.success) {
         set((s) => {
           s.checksumStatus = 'valid';
+        });
+      } else {
+        set((s) => {
+          s.checksumStatus = 'unknown';
         });
       }
     },
@@ -615,6 +647,13 @@ export const useEcuStore = create<EcuStore>()(
       if (!map) return;
 
       state.binMapper.writeMap(state.ecuFile, map);
+    },
+
+    setLoading: (isLoading, message = null) => {
+      set((state) => {
+        state.isLoading = isLoading;
+        state.loadingMessage = isLoading ? message : null;
+      });
     },
 
     setError: (error) => {

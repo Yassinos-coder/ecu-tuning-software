@@ -100,7 +100,7 @@ function ScalarItem({ scalar, onValueChange }: ScalarItemProps) {
 }
 
 export function ScalarsPanel() {
-  const { scalars, ecuFile, editScalar } = useEcuStore();
+  const { scalars, maps, ecuFile, xdfDefinition, editScalar } = useEcuStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showModifiedOnly, setShowModifiedOnly] = useState(false);
@@ -188,11 +188,26 @@ export function ScalarsPanel() {
     );
   }
 
-  if (scalars.length === 0) {
+  if (!xdfDefinition) {
     return (
       <div className="scalars-panel empty">
-        <p>No scalar parameters found in the XDF definition</p>
-        <p className="hint">Make sure your XDF file contains XDFCONSTANT definitions</p>
+        <p>No XDF definition loaded</p>
+        <p className="hint">Load the matching XML XDF before opening the Parameters view.</p>
+      </div>
+    );
+  }
+
+  if (scalars.length === 0) {
+    const hasTables = maps.length > 0;
+
+    return (
+      <div className="scalars-panel empty">
+        <p>No scalar parameters found</p>
+        <p className="hint">
+          {hasTables
+            ? 'This XDF defines editable values as tables. Use Maps Explorer and Table view.'
+            : 'This XDF did not produce supported tables or constants.'}
+        </p>
       </div>
     );
   }

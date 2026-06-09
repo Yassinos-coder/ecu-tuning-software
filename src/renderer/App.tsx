@@ -15,7 +15,7 @@ import { useUiStore } from './store/uiStore';
 import { executeMenuAction, openBinFileFromDialog, openXdfFileFromDialog } from './lib/appCommands';
 
 function App() {
-  const { ecuFile, getSelectedMap } = useEcuStore();
+  const { ecuFile, error, setError, getSelectedMap } = useEcuStore();
   const { showExplorer, showHexView, showAiPanel, viewMode, theme } = useUiStore();
 
   // Set theme on body
@@ -35,6 +35,7 @@ function App() {
   return (
     <AppShell>
       <Toolbar />
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       <div className="app-content">
         {/* Left sidebar - Map Explorer */}
@@ -127,6 +128,54 @@ function App() {
         }
       `}</style>
     </AppShell>
+  );
+}
+
+function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="error-banner">
+      <span className="error-message">{message}</span>
+      <button className="error-dismiss" onClick={onDismiss} title="Dismiss error">
+        ×
+      </button>
+
+      <style>{`
+        .error-banner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 12px;
+          background-color: rgba(239, 68, 68, 0.14);
+          border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+          color: var(--accent-danger);
+          font-size: 13px;
+        }
+
+        .error-message {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .error-dismiss {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          color: inherit;
+          font-size: 18px;
+          line-height: 1;
+        }
+
+        .error-dismiss:hover {
+          background-color: rgba(239, 68, 68, 0.16);
+        }
+      `}</style>
+    </div>
   );
 }
 

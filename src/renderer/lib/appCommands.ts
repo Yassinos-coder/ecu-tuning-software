@@ -10,13 +10,17 @@ function getElectronApi() {
   return window.electronAPI;
 }
 
+function getDisplayFileName(filePath: string): string {
+  return filePath.split(/[\\/]/).pop() || filePath;
+}
+
 export async function openBinFileFromDialog(): Promise<void> {
   const electronAPI = getElectronApi();
   if (!electronAPI) {
     return;
   }
 
-  const { loadBinFile, setError } = useEcuStore.getState();
+  const { loadBinFile, setError, setLoading } = useEcuStore.getState();
   setError(null);
 
   const result = await electronAPI.file.openDialog({
@@ -32,14 +36,22 @@ export async function openBinFileFromDialog(): Promise<void> {
   }
 
   const filePath = result.filePaths[0];
-  const fileResult = await electronAPI.file.readBin(filePath);
+  setLoading(true, `Reading BIN ${getDisplayFileName(filePath)}`);
 
-  if (fileResult.success && fileResult.data) {
-    loadBinFile(fileResult.path, fileResult.filename, fileResult.data);
-    return;
+  try {
+    const fileResult = await electronAPI.file.readBin(filePath);
+
+    if (fileResult.success && fileResult.data) {
+      loadBinFile(fileResult.path, fileResult.filename, fileResult.data);
+      return;
+    }
+
+    setError(fileResult.error || 'Failed to open BIN file.');
+    setLoading(false);
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Failed to open BIN file.');
+    setLoading(false);
   }
-
-  setError(fileResult.error || 'Failed to open BIN file.');
 }
 
 export async function openXdfFileFromDialog(): Promise<void> {
@@ -48,7 +60,7 @@ export async function openXdfFileFromDialog(): Promise<void> {
     return;
   }
 
-  const { loadXdfFile, setError } = useEcuStore.getState();
+  const { loadXdfFile, setError, setLoading } = useEcuStore.getState();
   setError(null);
 
   const result = await electronAPI.file.openDialog({
@@ -64,19 +76,27 @@ export async function openXdfFileFromDialog(): Promise<void> {
   }
 
   const filePath = result.filePaths[0];
-  const fileResult = await electronAPI.file.readXdf(filePath);
+  setLoading(true, `Reading XDF ${getDisplayFileName(filePath)}`);
 
-  if (fileResult.success && fileResult.content) {
-    loadXdfFile(fileResult.content);
-    return;
+  try {
+    const fileResult = await electronAPI.file.readXdf(filePath);
+
+    if (fileResult.success && fileResult.content) {
+      loadXdfFile(fileResult.content, fileResult.path, fileResult.filename, fileResult.size);
+      return;
+    }
+
+    setError(fileResult.error || 'Failed to open XDF file.');
+    setLoading(false);
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Failed to open XDF file.');
+    setLoading(false);
   }
-
-  setError(fileResult.error || 'Failed to open XDF file.');
 }
 
 export async function saveBinFileFromDialog(): Promise<void> {
   const electronAPI = getElectronApi();
-  const { ecuFile, saveBinFile, setError } = useEcuStore.getState();
+  const { ecuFile, saveBinFile, setError, setLoading } = useEcuStore.getState();
 
   if (!ecuFile || !electronAPI) {
     return;
@@ -97,15 +117,23 @@ export async function saveBinFileFromDialog(): Promise<void> {
     return;
   }
 
-  const data = saveBinFile();
-  if (!data) {
-    setError('There is no loaded BIN file to save.');
-    return;
-  }
+  setLoading(true, `Writing BIN ${getDisplayFileName(result.filePaths[0])}`);
 
-  const writeResult = await electronAPI.file.writeBin(result.filePaths[0], data);
-  if (!writeResult.success) {
-    setError(writeResult.error || 'Failed to save BIN file.');
+  try {
+    const data = saveBinFile();
+    if (!data) {
+      setError('There is no loaded BIN file to save.');
+      return;
+    }
+
+    const writeResult = await electronAPI.file.writeBin(result.filePaths[0], data);
+    if (!writeResult.success) {
+      setError(writeResult.error || 'Failed to save BIN file.');
+    }
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Failed to save BIN file.');
+  } finally {
+    setLoading(false);
   }
 }
 
